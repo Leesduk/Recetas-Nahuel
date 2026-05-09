@@ -1,10 +1,8 @@
-// Rellená estos valores con los de tu proyecto Firebase.
-// No subas credenciales reales a repositorios públicos.
 export const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_AUTH_DOMAIN",
-  projectId: "TU_PROJECT_ID",
-  storageBucket: "TU_STORAGE_BUCKET",
-  messagingSenderId: "TU_MESSAGING_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyDzvZjmL93vevqwCX-ODi6BkCKt2en4CnA",
+  authDomain: "recetas-82eae.firebaseapp.com",
+  projectId: "recetas-82eae",
+  storageBucket: "recetas-82eae.firebasestorage.app",
+  messagingSenderId: "686960739801",
+  appId: "1:686960739801:web:a7b34b0dc51d04e5cf85c8"
 };
