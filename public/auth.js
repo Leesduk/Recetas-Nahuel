@@ -1,51 +1,41 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-import { firebaseConfig } from "../src/firebase.config.js";
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from "firebase/auth";
+import { firebaseConfig } from '../src/firebase.config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const btnGoogle = document.getElementById('btnGoogle');
-const btnSignOut = document.getElementById('btnSignOut');
-const userInfo = document.getElementById('userInfo');
-
-btnGoogle.addEventListener('click', async () => {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    console.log('Login exitoso', result.user);
-  } catch (err) {
-    console.error('Error en signInWithPopup', err);
-    if (err.code === 'auth/account-exists-with-different-credential') {
-      alert('Ya existe una cuenta con ese correo usando otro proveedor.');
-    } else {
-      alert('Error al iniciar sesión: ' + err.message);
+// Al cargar la página, revisar si viene del redirect
+getRedirectResult(auth)
+  .then((result) => {
+    if (result && result.user) {
+      const user = result.user;
+      console.log("Usuario logueado por redirect:", user);
+      const infoEl = document.getElementById('user-info');
+      if (infoEl) infoEl.textContent = user.email || user.displayName || 'Usuario';
     }
-  }
-});
+  })
+  .catch((error) => {
+    console.error("Error en getRedirectResult:", error);
+  });
 
-btnSignOut.addEventListener('click', async () => {
-  try {
-    await signOut(auth);
-  } catch (err) {
-    console.error('Error al cerrar sesión', err);
-  }
-});
+// Botón login
+const btnLogin = document.getElementById('btn-login');
+if (btnLogin) {
+  btnLogin.addEventListener('click', () => {
+    signInWithRedirect(auth, provider);
+  });
+}
 
-onAuthStateChanged(auth, user => {
-  if (user) {
-    userInfo.textContent = `Conectado: ${user.displayName} (${user.email})`;
-    btnGoogle.style.display = 'none';
-    btnSignOut.style.display = 'inline-block';
-  } else {
-    userInfo.textContent = 'No hay sesión';
-    btnGoogle.style.display = 'inline-block';
-    btnSignOut.style.display = 'none';
-  }
-});
+// Botón logout
+const btnLogout = document.getElementById('btn-logout');
+if (btnLogout) {
+  btnLogout.addEventListener('click', () => {
+    signOut(auth).then(() => {
+      console.log("Desconectado");
+      const infoEl = document.getElementById('user-info');
+      if (infoEl) infoEl.textContent = '';
+    });
+  });
+}
