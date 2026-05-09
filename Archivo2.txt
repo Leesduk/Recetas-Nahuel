@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="es" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de la Compra - Pollo BBQ</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&amp;family=Nunito:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    .font-heading { font-family: 'DM Serif Display', serif; }
+    .font-body { font-family: 'Nunito', sans-serif; }
+    .ingredient-check:checked + label { text-decoration: line-through; opacity: 0.5; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full font-body">
+  <div id="app" class="h-full w-full overflow-auto" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);"><!-- Menu Selection Screen -->
+   <div id="menuScreen" class="h-full w-full flex flex-col items-center justify-center px-4">
+    <div class="text-center mb-12">
+     <div class="inline-block bg-amber-500/20 rounded-full px-4 py-1 mb-3">
+      <span class="text-amber-400 text-sm font-semibold">🍽️ Menú</span>
+     </div>
+     <h1 class="font-heading text-4xl md:text-5xl text-white mb-2">¿Qué cocinas hoy?</h1>
+     <p class="text-slate-400">Selecciona una receta para ajustar ingredientes</p>
+    </div>
+    <div id="menuGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl"></div>
+   </div><!-- Recipe Screen -->
+   <div id="recipeScreen" class="hidden max-w-2xl mx-auto px-4 py-8"><!-- Header -->
+    <div class="text-center mb-8"><button onclick="backToMenu()" class="mb-4 inline-flex items-center gap-2 text-amber-400 hover:text-amber-300 transition"><i data-lucide="arrow-left" style="width:18px;height:18px"></i> Volver al menú</button>
+     <div class="inline-block bg-amber-500/20 rounded-full px-4 py-1 mb-3">
+      <span class="text-amber-400 text-sm font-semibold">🔥 Receta</span>
+     </div>
+     <h1 id="title" class="font-heading text-4xl md:text-5xl text-white mb-2">Pollo a la Barbacoa</h1>
+     <p class="text-slate-400">Ajusta las raciones y genera tu lista</p>
+    </div><!-- Serving Selector -->
+    <div class="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6 mb-6">
+     <div class="flex items-center justify-between">
+      <span class="text-white font-semibold">Raciones</span>
+      <div class="flex items-center gap-4">
+       <button onclick="changeServings(-1)" class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center hover:bg-amber-500/30 transition"> <i data-lucide="minus" style="width:18px;height:18px"></i> </button> <span id="servingCount" class="text-3xl font-bold text-white w-8 text-center">4</span> <button onclick="changeServings(1)" class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center hover:bg-amber-500/30 transition"> <i data-lucide="plus" style="width:18px;height:18px"></i> </button>
+      </div>
+     </div>
+    </div><!-- Ingredients List -->
+    <div id="ingredientsList" class="space-y-3 mb-8"></div><!-- Steps Section -->
+    <div class="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6 mb-6">
+     <h2 class="text-amber-400 font-bold text-xl mb-4">Paso a Paso</h2>
+     <div id="stepsList" class="space-y-3"></div>
+    </div><!-- Copy Button -->
+    <div class="mt-6 text-center">
+     <button onclick="copyList()" id="copyBtn" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-6 py-3 rounded-xl transition inline-flex items-center gap-2"> <i data-lucide="clipboard-copy" style="width:18px;height:18px"></i> Copiar lista </button>
+    </div>
+   </div>
+  </div>
+  <script>
+    let servings = 4;
+    const baseServings = 4;
+    let currentRecipe = null;
+
+    const recipes = {
+      bbq_chicken: {
+        name: "Pollo a la Barbacoa",
+        emoji: "🍗",
+        baseServings: 4,
+        ingredients: [
+          { category: "Proteína", items: [
+            { name: "Muslos de pollo", qty: 8, unit: "uds" },
+          ]},
+          { category: "Marinado", items: [
+            { name: "Salsa barbacoa", qty: 200, unit: "ml" },
+            { name: "Aceite de oliva", qty: 3, unit: "cda" },
+            { name: "Ajo picado", qty: 4, unit: "dientes" },
+            { name: "Miel", qty: 2, unit: "cda" },
+            { name: "Pimentón ahumado", qty: 1, unit: "cda" },
+            { name: "Comino", qty: 1, unit: "cdta" },
+          ]},
+          { category: "Acompañamiento", items: [
+            { name: "Mazorcas de maíz", qty: 4, unit: "uds" },
+            { name: "Patatas", qty: 600, unit: "g" },
+            { name: "Pimiento rojo", qty: 2, unit: "uds" },
+            { name: "Cebolla morada", qty: 1, unit: "ud" },
+          ]},
+          { category: "Extras", items: [
+            { name: "Limones", qty: 2, unit: "uds" },
+            { name: "Cilantro fresco", qty: 1, unit: "manojo" },
+            { name: "Sal y pimienta", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Limpia y seca bien los muslos de pollo con papel absorbente",
+          "Mezcla en un bol: salsa barbacoa, aceite de oliva, ajo picado, miel, pimentón ahumado y comino",
+          "Coloca el pollo en una fuente y vierte la marinada sobre él. Deja reposar 30 minutos como mínimo",
+          "Calienta el horno a 200°C o prepara la parrilla a fuego medio-alto",
+          "Asa el pollo durante 35-40 minutos si es al horno, o 15-20 minutos si es a la parrilla, dándole la vuelta a mitad del tiempo",
+          "Añade las patatas, pimientos y cebollas cortadas al lado del pollo en los últimos 25 minutos",
+          "Comprueba que el pollo esté bien hecho (termómetro interno a 75°C) y las verduras tiernas",
+          "Sirve caliente acompañado con mazorcas de maíz y cilantro fresco. Exprime limón al gusto"
+        ]
+      },
+      pasta_carbonara: {
+        name: "Pasta a la Carbonara",
+        emoji: "🍝",
+        baseServings: 4,
+        ingredients: [
+          { category: "Pasta", items: [
+            { name: "Espagueti", qty: 400, unit: "g" },
+          ]},
+          { category: "Proteína", items: [
+            { name: "Panceta o guanciale", qty: 200, unit: "g" },
+            { name: "Huevos", qty: 3, unit: "uds" },
+            { name: "Queso Pecorino Romano", qty: 100, unit: "g" },
+          ]},
+          { category: "Condimentos", items: [
+            { name: "Pimienta negra molida", qty: 1, unit: "cdta" },
+            { name: "Sal", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Corta la panceta o guanciale en tiras finas y colócalas en una sartén a fuego medio",
+          "Fríe la panceta hasta que esté crujiente, unos 5-7 minutos. Reserva la grasa",
+          "Mientras tanto, ralla el queso Pecorino Romano y bate los huevos en un bol con pimienta negra",
+          "Hierve agua con sal en una olla grande. Cuando hierva, añade el espagueti",
+          "Cocina la pasta según el empaque, hasta que esté al dente (unos 9-10 minutos)",
+          "Reserva 200 ml de agua de cocción antes de colar la pasta",
+          "En la sartén con la panceta caliente, retira del fuego y espera 1 minuto",
+          "Agrega la pasta caliente a la sartén y mezcla bien",
+          "Vierte la mezcla de huevo poco a poco, removiendo constantemente",
+          "Añade agua de cocción según necesites para conseguir una salsa cremosa",
+          "Sirve inmediatamente con queso Pecorino Romano rallado y pimienta negra al gusto"
+        ]
+      },
+      tacos_al_pastor: {
+        name: "Tacos al Pastor",
+        emoji: "🌮",
+        baseServings: 4,
+        ingredients: [
+          { category: "Proteína", items: [
+            { name: "Cerdo picado", qty: 800, unit: "g" },
+          ]},
+          { category: "Marinado", items: [
+            { name: "Piña fresca", qty: 300, unit: "g" },
+            { name: "Chiles guajillo", qty: 4, unit: "uds" },
+            { name: "Vinagre blanco", qty: 3, unit: "cda" },
+            { name: "Comino", qty: 1, unit: "cdta" },
+            { name: "Orégano", qty: 1, unit: "cdta" },
+            { name: "Ajo", qty: 3, unit: "dientes" },
+          ]},
+          { category: "Acompañamiento", items: [
+            { name: "Tortillas de maíz", qty: 12, unit: "uds" },
+            { name: "Cebolla morada", qty: 1, unit: "ud" },
+            { name: "Cilantro fresco", qty: 1, unit: "manojo" },
+            { name: "Limones", qty: 2, unit: "uds" },
+          ]}
+        ],
+        steps: [
+          "Retira las semillas de los chiles guajillo y déjalos remojar en agua caliente 5 minutos",
+          "Tritura los chiles remojados con ajo, vinagre, comino y orégano hasta hacer una pasta",
+          "Mezcla esta pasta con el cerdo picado y deja marinar 30 minutos",
+          "Pica la piña en dados pequeños y agrega a la marinada del cerdo",
+          "Calienta una sartén grande a fuego medio-alto",
+          "Cocina el cerdo con la piña durante 15-20 minutos, removiendo ocasionalmente, hasta que esté dorado",
+          "Mientras tanto, pica finamente la cebolla morada",
+          "Calienta las tortillas de maíz en una sartén o directamente en la llama",
+          "Monta los tacos: tortilla caliente, cerdo con piña, cebolla morada y cilantro fresco",
+          "Acompaña con limones para exprimir al gusto"
+        ]
+      },
+      salmon_a_la_mantequilla: {
+        name: "Salmón a la Mantequilla",
+        emoji: "🐟",
+        baseServings: 2,
+        ingredients: [
+          { category: "Proteína", items: [
+            { name: "Filetes de salmón", qty: 2, unit: "uds" },
+          ]},
+          { category: "Salsa", items: [
+            { name: "Mantequilla", qty: 100, unit: "g" },
+            { name: "Limón", qty: 1, unit: "ud" },
+            { name: "Ajo", qty: 2, unit: "dientes" },
+            { name: "Perejil fresco", qty: 1, unit: "ramo" },
+          ]},
+          { category: "Acompañamiento", items: [
+            { name: "Brócoli", qty: 300, unit: "g" },
+            { name: "Patatas", qty: 400, unit: "g" },
+            { name: "Aceite de oliva", qty: 2, unit: "cda" },
+          ]},
+          { category: "Condimentos", items: [
+            { name: "Sal y pimienta", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Calienta el horno a 180°C",
+          "Corta las patatas en cubos pequeños y colócalas en una bandeja",
+          "Rocía con aceite de oliva, sal y pimienta. Hornea durante 20 minutos",
+          "Mientras tanto, corta el brócoli en floretes",
+          "Después de 20 minutos, agrega el brócoli a la bandeja con las patatas",
+          "Continúa horneando otros 10-15 minutos hasta que todo esté tierno",
+          "Seca bien los filetes de salmón con papel absorbente",
+          "Coloca los filetes sobre papel de aluminio, salpimenta generosamente",
+          "Funde la mantequilla en una sartén pequeña con el ajo picado",
+          "Vierte la mantequilla con ajo sobre el salmón",
+          "Cierra el papel de aluminio formando un papillote y hornea a 180°C durante 12-15 minutos",
+          "Abre con cuidado el papillote para no quemarte con el vapor",
+          "Decora con perejil fresco y sirve inmediatamente con las verduras"
+        ]
+      },
+      milanesa_napolitana: {
+        name: "Milanesa Napolitana con Puré",
+        emoji: "🍖",
+        baseServings: 4,
+        ingredients: [
+          { category: "Milanesa", items: [
+            { name: "Pechuga de pollo", qty: 4, unit: "uds" },
+            { name: "Huevos", qty: 2, unit: "uds" },
+            { name: "Pan rallado", qty: 150, unit: "g" },
+            { name: "Harina", qty: 100, unit: "g" },
+            { name: "Jamón cocido", qty: 150, unit: "g" },
+            { name: "Queso mozzarella", qty: 150, unit: "g" },
+          ]},
+          { category: "Salsa", items: [
+            { name: "Salsa de tomate", qty: 200, unit: "ml" },
+            { name: "Ajo", qty: 2, unit: "dientes" },
+            { name: "Orégano", qty: 1, unit: "cdta" },
+          ]},
+          { category: "Puré", items: [
+            { name: "Patatas", qty: 800, unit: "g" },
+            { name: "Mantequilla", qty: 80, unit: "g" },
+            { name: "Leche", qty: 150, unit: "ml" },
+          ]},
+          { category: "Extras", items: [
+            { name: "Aceite de oliva", qty: 4, unit: "cda" },
+            { name: "Sal y pimienta", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Calienta el horno a 200°C",
+          "Cuece las patatas peladas en agua con sal hasta que estén tiernas, unos 20 minutos",
+          "Mientras tanto, aplana las pechugas de pollo con un mazo de cocina hasta que tengan 1 cm de grosor",
+          "Prepara tres platos: uno con harina, otro con los huevos batidos, y el tercero con pan rallado",
+          "Pasa cada pechuga por harina, luego por huevo y finalmente por pan rallado",
+          "Calienta aceite en una sartén grande a fuego medio-alto",
+          "Fríe las milanesas 3-4 minutos por cada lado hasta que estén doradas",
+          "Coloca las milanesas en una bandeja refractaria",
+          "Pon una tira de jamón y queso mozzarella sobre cada milanesa",
+          "Mezcla la salsa de tomate con ajo picado y orégano, vierte sobre cada milanesa",
+          "Hornea 10-15 minutos hasta que el queso esté fundido y dorado",
+          "Mientras el horno termina, cuela las patatas cocidas",
+          "Machaca las patatas con mantequilla y leche caliente hasta conseguir un puré cremoso",
+          "Sirve las milanesas napolitanas sobre el puré caliente"
+        ]
+      },
+      asado_argentino: {
+        name: "Asado Argentino",
+        emoji: "🔥",
+        baseServings: 6,
+        ingredients: [
+          { category: "Carnes", items: [
+            { name: "Costillas de res", qty: 1200, unit: "g" },
+            { name: "Carne de res (bife)", qty: 800, unit: "g" },
+            { name: "Longanizas", qty: 4, unit: "uds" },
+            { name: "Morcilla", qty: 300, unit: "g" },
+          ]},
+          { category: "Marinado", items: [
+            { name: "Chimichurri fresco", qty: 200, unit: "ml" },
+            { name: "Ajo picado", qty: 4, unit: "dientes" },
+            { name: "Vinagre", qty: 2, unit: "cda" },
+          ]},
+          { category: "Acompañamiento", items: [
+            { name: "Cebollas", qty: 4, unit: "uds" },
+            { name: "Pimientos", qty: 3, unit: "uds" },
+            { name: "Pan casero", qty: 1, unit: "ud" },
+            { name: "Limones", qty: 2, unit: "uds" },
+          ]},
+          { category: "Condimentos", items: [
+            { name: "Sal gruesa", qty: 0, unit: "" },
+            { name: "Pimienta negra", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Enciende el fuego y prepara las brasas al menos 30 minutos antes (carbón bien rojo)",
+          "Saca las carnes del refrigerador 30 minutos antes de cocinar",
+          "Mezcla el chimichurri fresco con ajo picado y vinagre en un bol",
+          "Pinta todas las carnes con la marinada de chimichurri",
+          "Coloca las costillas sobre la parrilla a distancia media del fuego",
+          "Cocina las costillas 20-25 minutos, dándoles la vuelta a mitad de cocción",
+          "Agrega el bife a la parrilla y cocina 8-10 minutos por lado (según el punto deseado)",
+          "En los últimos 10 minutos, coloca las longanizas y la morcilla en la parrilla",
+          "Mientras se cocinan las carnes, corta cebollas y pimientos en aros",
+          "Coloca los aros de cebolla y pimiento alrededor de la parrilla para calentar",
+          "Comprueba que todas las carnes estén bien cocidas",
+          "Retira todo de la parrilla a una tabla de madera",
+          "Calienta el pan en la parrilla también",
+          "Sirve todas las carnes juntas con las verduras, pan, limones y chimichurri al lado",
+          "¡Acompaña con vino tinto argentino!"
+        ]
+      },
+      sandwich_milanesa: {
+        name: "Sánguche de Milanesa",
+        emoji: "🥪",
+        baseServings: 4,
+        ingredients: [
+          { category: "Proteína", items: [
+            { name: "Pechuga de pollo", qty: 4, unit: "uds" },
+            { name: "Huevos", qty: 2, unit: "uds" },
+            { name: "Pan rallado", qty: 150, unit: "g" },
+            { name: "Harina", qty: 100, unit: "g" },
+          ]},
+          { category: "Pan y condimentos", items: [
+            { name: "Pan francés", qty: 4, unit: "uds" },
+            { name: "Mayonesa", qty: 150, unit: "g" },
+            { name: "Mostaza", qty: 2, unit: "cda" },
+          ]},
+          { category: "Relleno", items: [
+            { name: "Lechuga", qty: 1, unit: "manojo" },
+            { name: "Tomate", qty: 3, unit: "uds" },
+            { name: "Cebolla morada", qty: 1, unit: "ud" },
+            { name: "Queso", qty: 150, unit: "g" },
+          ]},
+          { category: "Extras", items: [
+            { name: "Aceite de oliva", qty: 3, unit: "cda" },
+            { name: "Sal y pimienta", qty: 0, unit: "" },
+          ]}
+        ],
+        steps: [
+          "Aplana las pechugas de pollo con un mazo de cocina hasta que tengan 1 cm de grosor",
+          "Prepara tres platos: uno con harina, otro con los huevos batidos, y el tercero con pan rallado",
+          "Pasa cada pechuga por harina, luego por huevo y finalmente por pan rallado",
+          "Calienta aceite de oliva en una sartén grande a fuego medio-alto",
+          "Fríe las milanesas 3-4 minutos por cada lado hasta que estén doradas y crujientes",
+          "Retira sobre papel absorbente para eliminar exceso de aceite",
+          "Lava y seca la lechuga. Corta los tomates y la cebolla en rodajas finas",
+          "Corta el queso en lonchas",
+          "Abre los panes franceses por la mitad",
+          "Unta mayonesa en la base del pan y mostaza en la tapa",
+          "En la base, coloca: lechuga, tomate, cebolla, queso y la milanesa caliente",
+          "Cierra el sánguche con la otra mitad del pan",
+          "Corta diagonalmente si lo deseas y sirve inmediatamente",
+          "Acompaña con bebida fría"
+        ]
+      },
+      pastel_papas: {
+        name: "Pastel de Papas",
+        emoji: "🥘",
+        baseServings: 6,
+        ingredients: [
+          { category: "Base", items: [
+            { name: "Patatas", qty: 1200, unit: "g" },
+            { name: "Mantequilla", qty: 100, unit: "g" },
+            { name: "Leche", qty: 200, unit: "ml" },
+          ]},
+          { category: "Relleno", items: [
+            { name: "Carne molida", qty: 600, unit: "g" },
+            { name: "Cebolla", qty: 2, unit: "uds" },
+            { name: "Pimentón", qty: 1, unit: "cda" },
+            { name: "Comino", qty: 1, unit: "cdta" },
+            { name: "Aceitunas verdes", qty: 100, unit: "g" },
+            { name: "Huevos duros", qty: 2, unit: "uds" },
+          ]},
+          { category: "Cobertura", items: [
+            { name: "Queso mozzarella", qty: 200, unit: "g" },
+            { name: "Huevo", qty: 1, unit: "ud" },
+          ]},
+          { category: "Condimentos", items: [
+            { name: "Sal y pimienta", qty: 0, unit: "" },
+            { name: "Ajo", qty: 2, unit: "dientes" },
+          ]}
+        ],
+        steps: [
+          "Calienta el horno a 180°C",
+          "Pela y corta las patatas en cubos. Cuécelas en agua con sal 15-20 minutos hasta que estén tiernas",
+          "Mientras tanto, pica la cebolla finamente",
+          "Calienta aceite en una sartén y sofríe la cebolla y el ajo picado",
+          "Agrega la carne molida y cocina 8-10 minutos, deshaciendo bien los grumos",
+          "Añade pimentón y comino a la carne, mezcla bien",
+          "Corta los huevos duros en mitades y las aceitunas en rodajas",
+          "Retira la carne del fuego y mezcla con los huevos duros y las aceitunas",
+          "Cuela las patatas cocidas y machácalas con mantequilla y leche caliente",
+          "Agrega sal y pimienta al puré según necesites",
+          "En una fuente refractaria, coloca una capa de puré (aprox. 1 cm)",
+          "Sobre el puré, esparce toda la mezcla de carne con huevo y aceitunas",
+          "Cubre con el resto del puré, alisa bien la superficie",
+          "Bate el huevo en un bol y pinta la superficie del pastel",
+          "Esparce queso mozzarella rallado sobre todo",
+          "Hornea 25-30 minutos hasta que la superficie esté dorada",
+          "Deja reposar 5 minutos antes de servir"
+        ]
+      }
+    };
+
+    function renderMenu() {
+      const grid = document.getElementById('menuGrid');
+      grid.innerHTML = '';
+      Object.entries(recipes).forEach(([key, recipe]) => {
+        const card = document.createElement('div');
+        card.className = 'fade-in bg-white/5 border border-white/10 rounded-2xl p-6 cursor-pointer hover:border-amber-400/50 hover:bg-white/10 transition';
+        card.onclick = () => selectRecipe(key);
+        card.innerHTML = `
+          <div class="text-5xl mb-3">${recipe.emoji}</div>
+          <h2 class="text-white font-bold text-xl mb-2">${recipe.name}</h2>
+          <p class="text-slate-400 text-sm">${recipe.baseServings} raciones base</p>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function selectRecipe(recipeKey) {
+      currentRecipe = recipes[recipeKey];
+      servings = currentRecipe.baseServings;
+      document.getElementById('servingCount').textContent = servings;
+      document.getElementById('title').textContent = currentRecipe.name;
+      document.getElementById('menuScreen').classList.add('hidden');
+      document.getElementById('recipeScreen').classList.remove('hidden');
+      renderList();
+      lucide.createIcons();
+    }
+
+    function backToMenu() {
+      document.getElementById('recipeScreen').classList.add('hidden');
+      document.getElementById('menuScreen').classList.remove('hidden');
+      currentRecipe = null;
+    }
+
+    function getScaled(qty) {
+      if (qty === 0) return "";
+      const scaled = (qty / currentRecipe.baseServings) * servings;
+      return scaled % 1 === 0 ? scaled : scaled.toFixed(1);
+    }
+
+    function renderList() {
+      if (!currentRecipe) return;
+      const container = document.getElementById('ingredientsList');
+      container.innerHTML = '';
+      currentRecipe.ingredients.forEach((cat, ci) => {
+        const section = document.createElement('div');
+        section.className = 'fade-in';
+        section.style.animationDelay = `${ci * 0.05}s`;
+        let html = `<h3 class="text-amber-400 font-bold text-sm uppercase tracking-wider mb-2 mt-4">${cat.category}</h3>`;
+        cat.items.forEach((item, ii) => {
+          const id = `ing-${ci}-${ii}`;
+          const qty = getScaled(item.qty);
+          const display = qty ? `${qty} ${item.unit}` : '';
+          html += `
+            <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl px-4 py-3 mb-2">
+              <input type="checkbox" id="${id}" class="ingredient-check accent-amber-500 w-5 h-5 cursor-pointer">
+              <label for="${id}" class="flex-1 text-white cursor-pointer">${item.name}</label>
+              <span class="text-amber-300 font-semibold text-sm whitespace-nowrap">${display}</span>
+            </div>`;
+        });
+        section.innerHTML = html;
+        container.appendChild(section);
+      });
+
+      // Render steps
+      const stepsContainer = document.getElementById('stepsList');
+      stepsContainer.innerHTML = '';
+      currentRecipe.steps.forEach((step, idx) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'fade-in flex gap-4 items-start';
+        stepDiv.style.animationDelay = `${0.2 + idx * 0.03}s`;
+        stepDiv.innerHTML = `
+          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 border border-amber-400 flex items-center justify-center">
+            <span class="text-amber-300 font-bold text-sm">${idx + 1}</span>
+          </div>
+          <p class="text-slate-300 pt-1">${step}</p>
+        `;
+        stepsContainer.appendChild(stepDiv);
+      });
+    }
+
+    function changeServings(delta) {
+      servings = Math.max(1, Math.min(20, servings + delta));
+      document.getElementById('servingCount').textContent = servings;
+      renderList();
+    }
+
+    function copyList() {
+      if (!currentRecipe) return;
+      let text = `${currentRecipe.emoji} ${currentRecipe.name} (${servings} raciones)\n\n`;
+      
+      text += `INGREDIENTES:\n\n`;
+      currentRecipe.ingredients.forEach(cat => {
+        text += `${cat.category}:\n`;
+        cat.items.forEach(item => {
+          const qty = getScaled(item.qty);
+          text += `  • ${item.name}${qty ? ` - ${qty} ${item.unit}` : ''}\n`;
+        });
+        text += '\n';
+      });
+
+      text += `\nPASO A PASO:\n\n`;
+      currentRecipe.steps.forEach((step, idx) => {
+        text += `${idx + 1}. ${step}\n`;
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = '✓ Copiado';
+        setTimeout(() => { btn.innerHTML = '<i data-lucide="clipboard-copy" style="width:18px;height:18px"></i> Copiar lista'; lucide.createIcons(); }, 1500);
+      });
+    }
+
+    // Element SDK
+    const defaultConfig = { main_title: "Pollo a la Barbacoa", background_color: "#1a1a2e", accent_color: "#f59e0b", text_color: "#ffffff", surface_color: "#ffffff0d", secondary_action_color: "#94a3b8", font_family: "DM Serif Display", font_size: 16 };
+
+    window.elementSdk.init({
+      defaultConfig,
+      onConfigChange: async (config) => {
+        const title = document.getElementById('title');
+        if (currentRecipe) title.textContent = currentRecipe.name;
+        const font = config.font_family || defaultConfig.font_family;
+        title.style.fontFamily = `${font}, serif`;
+        const base = config.font_size || defaultConfig.font_size;
+        title.style.fontSize = `${base * 2.5}px`;
+        document.getElementById('app').style.background = `linear-gradient(135deg, ${config.background_color || defaultConfig.background_color} 0%, #16213e 50%, #0f3460 100%)`;
+      },
+      mapToCapabilities: (config) => ({
+        recolorables: [
+          { get: () => config.background_color || defaultConfig.background_color, set: (v) => { config.background_color = v; window.elementSdk.setConfig({ background_color: v }); }},
+          { get: () => config.surface_color || defaultConfig.surface_color, set: (v) => { config.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }},
+          { get: () => config.text_color || defaultConfig.text_color, set: (v) => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); }},
+          { get: () => config.accent_color || defaultConfig.accent_color, set: (v) => { config.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }},
+          { get: () => config.secondary_action_color || defaultConfig.secondary_action_color, set: (v) => { config.secondary_action_color = v; window.elementSdk.setConfig({ secondary_action_color: v }); }},
+        ],
+        borderables: [],
+        fontEditable: { get: () => config.font_family || defaultConfig.font_family, set: (v) => { config.font_family = v; window.elementSdk.setConfig({ font_family: v }); }},
+        fontSizeable: { get: () => config.font_size || defaultConfig.font_size, set: (v) => { config.font_size = v; window.elementSdk.setConfig({ font_size: v }); }},
+      }),
+      mapToEditPanelValues: (config) => new Map([["main_title", config.main_title || defaultConfig.main_title]])
+    });
+
+    renderMenu();
+    lucide.createIcons();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9f8d9bbb37d89803',t:'MTc3ODI5NzI0Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
